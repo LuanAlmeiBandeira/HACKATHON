@@ -1,5 +1,14 @@
+# Ambiente virtual
 venv/
+.venv/
+
+# Configurações do editor
+.vscode/
+
+# Python
 __pycache__/
+*.pyc
+
+# Arquivos do sistema
 storage/arquivos/*
 storage/backup/*
-.env

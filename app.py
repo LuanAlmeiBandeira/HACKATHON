@@ -1,8 +1,8 @@
 import os
 import shutil
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory # type: ignore
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='frontend', static_url_path='')
 
 # CONFIGURAÇÕES DE DIRETÓRIO
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -11,6 +11,10 @@ BACKUP_DIR = os.path.join(BASE_DIR, 'storage', 'backup')
 
 os.makedirs(ARQUIVOS_DIR, exist_ok=True)
 os.makedirs(BACKUP_DIR, exist_ok=True)
+
+@app.route('/')
+def frontend():
+    return send_from_directory('frontend', 'index.html')
 
 # ENDPOINT: UPLOAD DE PDF
 @app.route('/upload', methods=['POST'])

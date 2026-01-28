@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Organizador de Arquivos</title>
+    <style>
+        body {
+            font-family: Arial;
+            max-width: 700px;
+            margin: auto;
+        }
+        h2 {
+            margin-top: 30px;
+        }
+        input, button {
+            padding: 8px;
+            margin: 5px 0;
+            width: 100%;
+        }
+        button {
+            cursor: pointer;
+        }
+        .doc {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        .actions {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>📁 Organizador de Arquivos (PDF)</h1>
+
+<!-- UPLOAD -->
+<h2>Upload de PDF</h2>
+<input type="text" id="cpfUpload" placeholder="CPF">
+<input type="file" id="fileUpload" accept="application/pdf">
+<button onclick="upload()">Enviar</button>
+<p id="msgUpload"></p>
+
+<!-- BUSCAR -->
+<h2>Buscar documentos por CPF</h2>
+<input type="text" id="cpfBuscar" placeholder="CPF">
+<button onclick="buscar()">Buscar</button>
+
+<div id="resultado"></div>
+
+<script>
+const API = "http://127.0.0.1:5000";
+
+function upload() {
+    const cpf = document.getElementById("cpfUpload").value;
+    const file = document.getElementById("fileUpload").files[0];
+
+    if (!cpf || !file) {
+        alert("Informe CPF e arquivo");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("cpf", cpf);
+    formData.append("file", file);
+
+    fetch(`${API}/upload`, {
+        method: "POST",
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById("msgUpload").innerText =
+            data.mensagem || data.erro;
+    });
+}
+
+function buscar() {
+    const cpf = document.getElementById("cpfBuscar").value;
+    const div = document.getElementById("resultado");
+
+    div.innerHTML = "Buscando...";
+
+    fetch(`${API}/buscar/${cpf}`)
+    .then(r => r.json())
+    .then(data => {
+        div.innerHTML = "";
+
+        if (data.quantidade === 0) {
+            div.innerHTML = "<p>Nenhum documento encontrado.</p>";
+            return;
+        }
+
+        data.documentos.forEach(doc => {
+            const safeId = doc.replace(/[^a-zA-Z0-9]/g, "_");
+
+            div.innerHTML += `
+                <div class="doc">
+                    <p><strong>${doc}</strong></p>
+
+                    <a href="${API}/download/${doc}" target="_blank">
+                        📥 Download
+                    </a>
+
+                    <div class="actions">
+                        <input type="file"
+                               id="edit-${safeId}"
+                               accept="application/pdf">
+
+                        <button onclick="editar('${doc}', '${safeId}')">
+                            ✏️ Editar
+                        </button>
+
+                        <button onclick="deletar('${doc}')">
+                            🗑️ Deletar
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+    });
+}
+
+function editar(nomeArquivo, safeId) {
+    const input = document.getElementById(`edit-${safeId}`);
+    const file = input.files[0];
+
+    if (!file) {
+        alert("Selecione um novo PDF para substituir");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    fetch(`${API}/editar/${nomeArquivo}`, {
+        method: "PUT",
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        alert(data.mensagem || data.erro);
+        buscar();
+    });
+}
+
+function deletar(nomeArquivo) {
+    if (!confirm("Deseja realmente deletar este arquivo?")) {
+        return;
+    }
+
+    fetch(`${API}/deletar/${nomeArquivo}`, {
+        method: "DELETE"
+    })
+    .then(r => r.json())
+    .then(data => {
+        alert(data.mensagem || data.erro);
+        buscar();
+    });
+}
+</script>
+
+</body>
+</html>

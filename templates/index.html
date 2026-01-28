@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Organizador de Arquivos</title>
+
+    <!-- ================= ESTILO ================= -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: auto;
+            padding: 20px;
+            background: #f2f2f2;
+        }
+
+        h1, h2 {
+            text-align: center;
+        }
+
+        label {
+            font-weight: bold;
+        }
+
+        input, select, button {
+            width: 100%;
+            padding: 8px;
+            margin: 6px 0;
+        }
+
+        button {
+            background: #1976d2;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0d47a1;
+        }
+
+        .doc {
+            background: white;
+            padding: 15px;
+            margin-top: 10px;
+            border: 1px solid #ccc;
+        }
+
+        .doc button {
+            margin-top: 5px;
+        }
+
+        .delete {
+            background: #c62828;
+        }
+
+        .edit-box {
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px dashed #aaa;
+            background: #fafafa;
+        }
+
+        .msg {
+            text-align: center;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>📁 Organizador de Arquivos (PDF)</h1>
+
+<!-- ================= UPLOAD ================= -->
+<h2>Enviar Documento</h2>
+
+<label>CPF</label>
+<input type="text" id="cpfUpload" placeholder="Somente números">
+
+<label>Tipo do Documento</label>
+<select id="tipoUpload">
+    <option value="">Selecione</option>
+    <option value="cpf">CPF</option>
+    <option value="rg">RG</option>
+    <option value="historico">Histórico Escolar</option>
+    <option value="certidao">Certidão de Nascimento</option>
+    <option value="residencia">Comprovante de Residência</option>
+</select>
+
+<label>Arquivo PDF</label>
+<input type="file" id="fileUpload" accept="application/pdf">
+
+<button onclick="upload()">Enviar Documento</button>
+<p class="msg" id="msgUpload"></p>
+
+<hr>
+
+<!-- ================= BUSCAR ================= -->
+<h2>Buscar Documentos por CPF</h2>
+
+<label>CPF</label>
+<input type="text" id="cpfBuscar" placeholder="Somente números">
+
+<button onclick="buscar()">Buscar</button>
+
+<div id="resultado"></div>
+
+<!-- ================= SCRIPT ================= -->
+<script>
+/* Base da API */
+const API = "/api";
+
+/* ================= UPLOAD ================= */
+function upload() {
+    const cpf = cpfUpload.value;
+    const tipo = tipoUpload.value;
+    const file = fileUpload.files[0];
+
+    if (!cpf || !tipo || !file) {
+        alert("Preencha todos os campos");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("cpf", cpf);
+    formData.append("tipo", tipo);
+    formData.append("file", file);
+
+    fetch(`${API}/documentos`, {
+        method: "POST",
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        msgUpload.innerText = data.mensagem || data.erro;
+        buscar();
+    });
+}
+
+/* ================= BUSCAR ================= */
+function buscar() {
+    const cpf = cpfBuscar.value;
+    const div = document.getElementById("resultado");
+
+    if (!cpf) {
+        alert("Informe o CPF");
+        return;
+    }
+
+    div.innerHTML = "Buscando...";
+
+    fetch(`${API}/documentos/${cpf}`)
+    .then(res => res.json())
+    .then(data => {
+        div.innerHTML = "";
+
+        if (!data.documentos || data.documentos.length === 0) {
+            div.innerHTML = "<p>Nenhum documento encontrado.</p>";
+            return;
+        }
+
+        data.documentos.forEach(doc => {
+            div.innerHTML += `
+                <div class="doc">
+                    <p><strong>Tipo:</strong> ${doc.tipo}</p>
+                    <p>${doc.arquivo}</p>
+
+                    <a href="/storage/arquivos/${doc.arquivo}" target="_blank">
+                        <button>📥 Download</button>
+                    </a>
+
+                    <button onclick="mostrarEditar('${doc.arquivo}', '${doc.tipo}')">
+                        ✏️ Editar
+                    </button>
+
+                    <button class="delete" onclick="deletar('${doc.arquivo}')">
+                        🗑️ Deletar
+                    </button>
+
+                    <div id="edit-${doc.arquivo}" class="edit-box" style="display:none;">
+                        <label>Novo Tipo</label>
+                        <select id="tipo-${doc.arquivo}">
+                            <option value="cpf">CPF</option>
+                            <option value="rg">RG</option>
+                            <option value="historico">Histórico Escolar</option>
+                            <option value="certidao">Certidão</option>
+                            <option value="residencia">Residência</option>
+                        </select>
+
+                        <label>Novo PDF</label>
+                        <input type="file" id="file-${doc.arquivo}" accept="application/pdf">
+
+                        <button onclick="editar('${doc.arquivo}')">
+                            💾 Salvar Alterações
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+    });
+}
+
+/* ================= MOSTRAR EDITAR ================= */
+function mostrarEditar(arquivo, tipoAtual) {
+    const div = document.getElementById(`edit-${arquivo}`);
+    div.style.display = div.style.display === "none" ? "block" : "none";
+    document.getElementById(`tipo-${arquivo}`).value = tipoAtual;
+}
+
+/* ================= EDITAR ================= */
+function editar(arquivo) {
+    const tipo = document.getElementById(`tipo-${arquivo}`).value;
+    const file = document.getElementById(`file-${arquivo}`).files[0];
+
+    if (!file) {
+        alert("Selecione um novo PDF");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("tipo", tipo);
+    formData.append("file", file);
+
+    fetch(`${API}/documentos/${arquivo}`, {
+        method: "PUT",
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert(data.mensagem || data.erro);
+        buscar();
+    });
+}
+
+/* ================= DELETAR ================= */
+function deletar(arquivo) {
+    if (!confirm("Deseja realmente excluir este documento?")) return;
+
+    fetch(`${API}/documentos/${arquivo}`, {
+        method: "DELETE"
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert(data.mensagem || data.erro);
+        buscar();
+    });
+}
+</script>
+
+</body>
+</html>
